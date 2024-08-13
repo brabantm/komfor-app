@@ -52,7 +52,7 @@ def haversine_distance(row, lat2, lon2):
 
 def run():
   st.set_page_config(
-        page_title="Réseaux d'énergie thermique Karno",
+        page_title="Réseaux d'énergie thermique Komfor",
         page_icon="👋",
     )
 
@@ -91,7 +91,7 @@ def run():
   # text content
   st.markdown(
       """
-      ## Les prochains réseaux d'énergie thermique Karno proches de chez moi
+      ## Les prochains réseaux d'énergie thermique Komfor proches de chez moi
 
       **👇 Introduisez votre adresse ci-dessous**
     """
@@ -124,33 +124,33 @@ def run():
 
           if df_close_distance["distance"].min() < 50:
             # Le réseau d'énergie thermique $$$ $$$$$ passera à côté de chez vous. Il est très probable que vous puissiez vous connecter. Contactez-nous pour entammer les démarches de connexion au réseau.
-            st.success(f"Le réseau d'énergie thermique **{nom}** passera à côté de chez vous. Il est très probable que vous puissiez vous connecter. [Contactez-nous](https://www.karno.energy/contact/) pour entammer les démarches de connexion au réseau.") #OLD = Le réseau de chaleur **" + df_close_distance["Nom"].iloc[0] + "** passera chez vous. N'hésitez pas à contacter Karno pour toute question.")
+            st.success(f"Le réseau d'énergie thermique **{nom}** passera à côté de chez vous. Il est très probable que vous puissiez vous connecter. [Contactez-nous](https://www.komfor.energy/raccordement/) pour entammer les démarches de connexion au réseau.") #OLD = Le réseau de chaleur **" + df_close_distance["Nom"].iloc[0] + "** passera chez vous. N'hésitez pas à contacter Komfor pour toute question.")
           
           elif df_close_distance["distance"].min() < 500:
             # Le réseau d'énergie thermique $$$ $$$$$ est en cours de développement dans votre quartier. Vous n'êtes pas situé le long du tracé prévu mais n'hésitez à nous contacter pour évaluer la possibilité d'une extension de réseau.
-            st.info(f"Le réseau d'énergie thermique **{nom}** est en cours de développement dans votre quartier. Vous n'êtes pas situé le long du tracé prévu mais n'hésitez à [nous contacter](https://www.karno.energy/contact/) pour évaluer la possibilité d'une extension de réseau.") # OLD=Le réseau de chaleur **" + df_close_distance["Nom"].iloc[0] + "** passera proche de chez vous. N'hésitez pas à contacter Karno pour toute question.")
+            st.info(f"Le réseau d'énergie thermique **{nom}** est en cours de développement dans votre quartier. Vous n'êtes pas situé le long du tracé prévu mais n'hésitez à [nous contacter](https://www.komfor.energy/raccordement) pour évaluer la possibilité d'une extension de réseau.") # OLD=Le réseau de chaleur **" + df_close_distance["Nom"].iloc[0] + "** passera proche de chez vous. N'hésitez pas à contacter Komfor pour toute question.")
           
           elif df_close_distance["distance"].min() <= 2000:
-            st.info(f"Le réseau d'énergie thermique **{nom}** est en cours de développement à proximité de chez vous. Il ne passe malheureusement pas encore dans votre quartier. Si vous êtes un grand consommateurs/producteur d'énergie thermique, [contactez-nous](https://www.karno.energy/contact/), on peut envisager une extension du réseau.")
+            st.info(f"Le réseau d'énergie thermique **{nom}** est en cours de développement à proximité de chez vous. Il ne passe malheureusement pas encore dans votre quartier. Si vous êtes un grand consommateurs/producteur d'énergie thermique, [contactez-nous](https://www.komfor.energy/raccordement), on peut envisager une extension du réseau.")
           
           else: 
-            st.info("Aucun réseau d'énergie thermique n'est en cours de développement à proximité de chez vous. Pour vous tenir au courant de nos prochains réseaux, n'hésitez pas à nous suivre sur [Linkedin](https://be.linkedin.com/company/karno-energy). De plus, contactez-nous si vous pensez que votre quartier bénéficierait d'un réseau d'énergie thermique.") # OLD = Aucun réseau de chaleur ne passera proche de chez vous.")
+            st.info("Aucun réseau d'énergie thermique n'est en cours de développement à proximité de chez vous. Pour vous tenir au courant de nos prochains réseaux, n'hésitez pas à nous suivre sur [Linkedin](https://www.linkedin.com/company/komfor-energy/). De plus, contactez-nous si vous pensez que votre quartier bénéficierait d'un réseau d'énergie thermique.") # OLD = Aucun réseau de chaleur ne passera proche de chez vous.")
 
           # if a heat network is found
           if len(df_close_distance) > 0:
             st.markdown(''' 
                         #### Légende
                      - votre adresse en :blue[bleu]  
-                     - le réseau d'énergie thermique Karno en :red[rouge]''')
+                     - le réseau d'énergie thermique Komfor en :green[vert]''')
           
             # Creating a new row to append
             df_close_distance = df_close_distance.rename(columns={"Lat": "lat", "Long": "lon"})
             df_close_distance["size"] = 5
-            df_close_distance["color"] = [[250,0,0,0.2]] * len(df_close_distance)
+            df_close_distance["color"] = [[73,166,79,0.5]] * len(df_close_distance)
 
             # add new row for user adress in BLUE
             df_close_distance = df_close_distance.reset_index()
-            df_close_distance.loc[len(df_close_distance)+1,:] = {"lat": lat, "lon": lon, "Nom": nom, "distance": 0, "size": 20, 'Rayon': 50, "color": [0,0,250, 0.8]}#{"lat": lat, "lon": lon, "Nom": "Test", "distance": 0,  'Rayon': 50, "size": 10, "color": [0,0,250, 0.8]}
+            df_close_distance.loc[len(df_close_distance)+1,:] = {"lat": lat, "lon": lon, "Nom": nom, "distance": 0, "size": 20, 'Rayon': 50, "color": [0,0,250, 0.5]}#{"lat": lat, "lon": lon, "Nom": "Test", "distance": 0,  'Rayon': 50, "size": 10, "color": [0,0,250, 0.5]}
 
             # plot only the closest heat network
             df_to_map = df_close_distance.where(df_close_distance.Nom == nom).dropna(how="all")[["lat", "color", "lon", "size"]]
