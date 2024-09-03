@@ -124,9 +124,9 @@ def run():
 
           if df_close_distance["distance"].min() < 50:
             # Le réseau d'énergie thermique $$$ $$$$$ passera à côté de chez vous. Il est très probable que vous puissiez vous connecter. Contactez-nous pour entammer les démarches de connexion au réseau.
-            st.success(f"Le réseau d'énergie thermique **{nom}** passera à côté de chez vous. Il est très probable que vous puissiez vous connecter. 
-            Professionnel : [Contactez-nous](https://www.komfor.energy/contactus) pour entammer les démarches de connexion au réseau. 
-            Particulier : [Demandez votre raccordement](https://docs.google.com/forms/d/e/1FAIpQLScm0X986g_TeqlGjq2cYV4EBZR9Fx77SZn2cOaoVZEZeIfTiA/viewform)") #OLD = Le réseau de chaleur **" + df_close_distance["Nom"].iloc[0] + "** passera chez vous. N'hésitez pas à contacter Komfor pour toute question.")
+            st.success(f"Le réseau d'énergie thermique **{nom}** passera à côté de chez vous. Il est très probable que vous puissiez vous connecter.\n\n"
+           "Professionnel : [Contactez-nous](https://www.komfor.energy/contactus) pour entamer les démarches de connexion au réseau.\n\n"
+           "Particulier : [Demandez votre raccordement](https://docs.google.com/forms/d/e/1FAIpQLScm0X986g_TeqlGjq2cYV4EBZR9Fx77SZn2cOaoVZEZeIfTiA/viewform)")
           
           elif df_close_distance["distance"].min() < 500:
             # Le réseau d'énergie thermique $$$ $$$$$ est en cours de développement dans votre quartier. Vous n'êtes pas situé le long du tracé prévu mais n'hésitez à nous contacter pour évaluer la possibilité d'une extension de réseau.
