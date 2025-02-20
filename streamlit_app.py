@@ -1,170 +1,119 @@
-# Copyright (c) Streamlit Inc. (2018-2022) Snowflake Inc. (2022)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import streamlit as st
 import pandas as pd
-import googlemaps
+import folium
+from streamlit_folium import st_folium
+from geopy.geocoders import Nominatim
+from geopy.exc import GeocoderTimedOut
 from math import radians, sin, cos, sqrt, atan2
-
-from st_keyup import st_keyup
-from streamlit.logger import get_logger
-
-LOGGER = get_logger(__name__)
+import certifi
+import ssl
+import urllib3
+import requests
 
 def haversine_distance(row, lat2, lon2):
-    """
-    row: row of the dataframe
-    lat2: user adress
-    lon2: user adress
-
-    returns: haversine distance between the 2 points
-    """
-    # Radius of the Earth in meters
-    R = 6371000.0
-    lat1 = row["Lat"]
-    lon1 = row["Long"]
+    """Calcule la distance haversine entre deux points (en mètres)."""
+    R = 6371000.0  # Rayon de la Terre en mètres
+    lat1, lon1 = radians(row["Lat"]), radians(row["Long"])
+    lat2, lon2 = radians(lat2), radians(lon2)
     
-    # Convert latitude and longitude from degrees to radians
-    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-    
-    # Calculate differences in coordinates
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-    
-    # Haversine formula
+    dlat, dlon = lat2 - lat1, lon2 - lon1
     a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
     c = 2 * atan2(sqrt(a), sqrt(1 - a))
     
-    # Calculate the distance
-    distance = R * c
-    return distance
+    return R * c
+
+def get_coordinates(address):
+    """Convertit une adresse en latitude/longitude avec Nominatim."""
+    try:
+        # Configuration du géocodeur avec certificat SSL
+        ctx = ssl.create_default_context(cafile=certifi.where())
+        session = requests.Session()
+        session.mount('https://', requests.adapters.HTTPAdapter(max_retries=3))
+        
+        geolocator = Nominatim(
+            user_agent="komfor_app",
+            scheme='https',
+            ssl_context=ctx
+        )
+        
+        location = geolocator.geocode(address, timeout=10)
+        if location:
+            return location.latitude, location.longitude
+        else:
+            return None, None
+            
+    except Exception as e:
+        print(f"Erreur de géocodage : {e}")
+        return None, None
 
 def run():
-  st.set_page_config(
+    st.set_page_config(
         page_title="Réseaux d'énergie thermique Komfor",
-        page_icon="👋",
+        page_icon="🔥",
     )
 
-  # read csv file
-  df = pd.read_csv("data.csv", sep=",")
+    # Charger les données des réseaux de chaleur
+    df = pd.read_csv("data.csv", sep=",")
 
-  # With Gmaps client for adress recovery: 
-  api_key = "AIzaSyDHuUrAfFTwsOSPwpnhIKXVDA_9zsr5aOk"
-  gmaps = googlemaps.Client(key=api_key)
+    # Interface utilisateur
+    st.markdown("## Les prochains réseaux d'énergie thermique Komfor proches de chez moi")
+    st.markdown("**👇 Introduisez votre adresse ci-dessous**")
 
-  # Without Gmaps: 
-  # street = st.sidebar.text_input("Street", "75 Bay Street")
-  # city = st.sidebar.text_input("City", "Toronto")
-  # province = st.sidebar.text_input("Province", "Ontario")
-  # country = st.sidebar.text_input("Country", "Canada")
+    address_query = st.text_input("Entrez votre adresse")
 
-  # geolocator = Nominatim(user_agent="GTA Lookup")
-  # # geocode = RateLimiter(geolocator.geocode, min_delay_seconds=5)
-  # location = geolocator.geocode(street+", "+city+", "+province+", "+country)
+    if address_query:
+        lat, lon = get_coordinates(address_query)
 
-  # lat = location.latitude
-  # lon = location.longitude
+        if lat and lon:
+            df['distance'] = df.apply(haversine_distance, args=(lat, lon), axis=1)
+            df_close_distance = df[df["distance"] <= 2000]
 
-  # df_close_distance = pd.DataFrame({'lat': [lat], 'lon': [lon]})
+            if not df_close_distance.empty:
+                closest_network = df_close_distance.loc[df_close_distance["distance"].idxmin(), "Nom"]
+            else:
+                closest_network = "Pas de réseau trouvé"
 
-  # st.map(df_close_distance)
+            # Messages en fonction de la distance
+            if df_close_distance["distance"].min() < 50:
+                st.success(f"Le réseau **{closest_network}** passera à côté de chez vous. Contactez-nous pour un raccordement.")
+            elif df_close_distance["distance"].min() < 500:
+                st.info(f"Le réseau **{closest_network}** est en développement dans votre quartier. Contactez-nous pour évaluer une extension.")
+            elif df_close_distance["distance"].min() <= 2000:
+                st.info(f"Le réseau **{closest_network}** est en développement à proximité. Si vous êtes un grand consommateur, contactez-nous.")
+            else:
+                st.info("Aucun réseau à proximité. Suivez-nous sur [LinkedIn](https://www.linkedin.com/company/komfor-energy/).")
 
+            # Affichage de la carte avec Folium
+            map_center = [lat, lon]
+            m = folium.Map(location=map_center, zoom_start=13)
 
-  def autocomplete_address(query):
-      """
-      query: adress entry to autocomplete
-      """
-      result = gmaps.places_autocomplete(query, components={'country': "BE"})
-      return result
+            # Ajouter l'adresse de l'utilisateur en bleu
+            folium.Marker(
+                [lat, lon],
+                popup="Votre adresse",
+                icon=folium.Icon(color="blue"),
+            ).add_to(m)
+            # Ajouter les réseaux de chaleur comme des ponts et les relier par des lignes
+            points = []
+            for _, row in df_close_distance.iterrows():
+                point = [row["Lat"], row["Long"]]
+                points.append(point)
+                folium.CircleMarker(
+                    point,
+                    popup=row["Nom"],
+                    radius=8,
+                    color="green",
+                    fill=True,
+                    weight=1
+                ).add_to(m)
 
-  # text content
-  st.markdown(
-      """
-      ## Les prochains réseaux d'énergie thermique Komfor proches de chez moi
-
-      **👇 Introduisez votre adresse ci-dessous**
-    """
-  )
-
-  # Adress entry
-  address_query = st_keyup("Entrez votre adresse", key="0")
-
-  # Display autocomplete suggestions
-  if address_query:
-      suggestions = autocomplete_address(address_query)
           
-      # Display clickable list of places
-      selected_place = st.selectbox("Nous avons trouvé les adresses suivantes:", suggestions, format_func=lambda place: place['description'])
 
-      # Show selected place details
-      if selected_place:
-          
-          # Extract latitude and longitude from the selected place
-          location = gmaps.place(selected_place['place_id'])['result']['geometry']['location']
-          lat, lon = location['lat'], location['lng']
-          
-          # calcul des distances
-          df['distance'] = df.apply(haversine_distance, args=(lat, lon), axis=1)
-          df_close_distance = df[df.distance <= 2000]
+            # Afficher la carte dans Streamlit
+            st_folium(m, width=700, height=500)
 
-          # on récupère le nom du réseau le plus proche
-          if len(df_close_distance) > 0: nom = df_close_distance.iloc[df_close_distance["distance"].argmin()]["Nom"]
-          else: nom="Pas de réseau trouvé"
-
-          if df_close_distance["distance"].min() < 50:
-            # Le réseau d'énergie thermique $$$ $$$$$ passera à côté de chez vous. Il est très probable que vous puissiez vous connecter. Contactez-nous pour entammer les démarches de connexion au réseau.
-            st.success(f"Le réseau d'énergie thermique **{nom}** passera à côté de chez vous. Il est très probable que vous puissiez vous connecter.\n\n"
-           "Particulier : [Demandez votre raccordement](https://docs.google.com/forms/d/e/1FAIpQLScm0X986g_TeqlGjq2cYV4EBZR9Fx77SZn2cOaoVZEZeIfTiA/viewform)\n\n"
-           "Professionnel : [Contactez-nous](https://www.komfor.energy/contactus) pour entamer les démarches de connexion au réseau.")
-          
-          elif df_close_distance["distance"].min() < 500:
-            # Le réseau d'énergie thermique $$$ $$$$$ est en cours de développement dans votre quartier. Vous n'êtes pas situé le long du tracé prévu mais n'hésitez à nous contacter pour évaluer la possibilité d'une extension de réseau.
-            st.info(f"Le réseau d'énergie thermique **{nom}** est en cours de développement dans votre quartier. Vous n'êtes pas situé le long du tracé prévu mais n'hésitez à [nous contacter](https://www.komfor.energy/contactus) pour évaluer la possibilité d'une extension de réseau.") # OLD=Le réseau de chaleur **" + df_close_distance["Nom"].iloc[0] + "** passera proche de chez vous. N'hésitez pas à contacter Komfor pour toute question.")
-          
-          elif df_close_distance["distance"].min() <= 2000:
-            st.info(f"Le réseau d'énergie thermique **{nom}** est en cours de développement à proximité de chez vous. Il ne passe malheureusement pas encore dans votre quartier. Si vous êtes un grand consommateurs/producteur d'énergie thermique, [contactez-nous](https://www.komfor.energy/contactus), on peut envisager une extension du réseau.")
-          
-          else: 
-            st.info("Aucun réseau d'énergie thermique n'est en cours de développement à proximité de chez vous. Pour vous tenir au courant de nos prochains réseaux, n'hésitez pas à nous suivre sur [Linkedin](https://www.linkedin.com/company/komfor-energy/). De plus, contactez-nous si vous pensez que votre quartier bénéficierait d'un réseau d'énergie thermique.") # OLD = Aucun réseau de chaleur ne passera proche de chez vous.")
-
-          # if a heat network is found
-          if len(df_close_distance) > 0:
-            st.markdown(''' 
-                        #### Légende
-                     - votre adresse en :blue[bleu]  
-                     - le réseau d'énergie thermique Komfor en :green[vert]''')
-          
-            # Creating a new row to append
-            df_close_distance = df_close_distance.rename(columns={"Lat": "lat", "Long": "lon"})
-            df_close_distance["size"] = 5
-            df_close_distance["color"] = [[73,166,79,0.5]] * len(df_close_distance)
-
-            # add new row for user adress in BLUE
-            df_close_distance = df_close_distance.reset_index()
-            df_close_distance.loc[len(df_close_distance)+1,:] = {"lat": lat, "lon": lon, "Nom": nom, "distance": 0, "size": 20, 'Rayon': 50, "color": [0,0,250, 0.5]}#{"lat": lat, "lon": lon, "Nom": "Test", "distance": 0,  'Rayon': 50, "size": 10, "color": [0,0,250, 0.5]}
-
-            # plot only the closest heat network
-            df_to_map = df_close_distance.where(df_close_distance.Nom == nom).dropna(how="all")[["lat", "color", "lon", "size"]]
-            df_to_map = df_to_map.reset_index() # correction bug rue de l'acier -> why ? -> no further study
-
-            # show map
-            st.map(df_to_map, zoom=13, size="size", color="color")
-          
-          # if no heat network is found, show user location
-          else:
-            st.map(pd.DataFrame([{"lat": lat, "lon": lon, "Nom": "Test", "distance": 0,  'Rayon': 50}]), zoom=13)
-
+        else:
+            st.error("Adresse introuvable. Veuillez réessayer.")
 
 if __name__ == "__main__":
     run()
