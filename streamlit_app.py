@@ -60,7 +60,7 @@ def run():
   df = pd.read_csv("data.csv", sep=",")
 
   # With Gmaps client for adress recovery: 
-  api_key = "AIzaSyAOi5CosdhIJItpyKFjD4jzXmV_MWNj-HA"
+  api_key = "AIzaSyDHuUrAfFTwsOSPwpnhIKXVDA_9zsr5aOk"
   gmaps = googlemaps.Client(key=api_key)
 
   # Without Gmaps: 
