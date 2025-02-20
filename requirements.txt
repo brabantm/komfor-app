@@ -3,3 +3,8 @@ pandas
 streamlit
 googlemaps
 streamlit-keyup
+folium
+streamlit-folium
+geopy
+certifi
+requests
